@@ -20,6 +20,8 @@ let loadingWindow: BrowserWindow | null = null;
 let nextJSServer: any = null;
 let honoServer: any = null;
 
+global.isPlaying = false;
+
 function createLoadingWindow(): BrowserWindow {
   const loadingWindow = new BrowserWindow({
     width: 380,
@@ -56,7 +58,7 @@ function createWindow(): BrowserWindow {
     width: 900,
     height: 670,
     show: false,
-    autoHideMenuBar: true,
+    autoHideMenuBar: false,
     webPreferences: {
       preload: join(__dirname, "preload.js"),
       sandbox: false,
@@ -77,6 +79,16 @@ function createWindow(): BrowserWindow {
     return { action: "deny" };
   });
 
+  ipcMain.on("set-play", () => {
+    global.isPlaying = true;
+    updateThumbarButtons(mainWindow, global.isPlaying);
+  });
+
+  ipcMain.on("set-pause", () => {
+    global.isPlaying = false;
+    updateThumbarButtons(mainWindow, global.isPlaying);
+  });
+
   return mainWindow;
 }
 
@@ -90,7 +102,7 @@ async function startNextJSServer() {
     nextJSServer = await startServer({
       dir: webDir,
       isDev: false,
-      hostname: "localhost",
+      hostname: "greendome",
       port: nextJSPort,
       customServer: true,
       allowRetry: false,
@@ -143,7 +155,7 @@ async function initializeApp() {
     const honoPort = await startHonoServer();
     // set progress bar to 50
     updateProgress(50, loadingWindow!);
-    console.log("Backend server started on port:", `http://localhost:${honoPort}`);
+    console.log("Backend server started on port:", `http://greendome:${honoPort}`);
     ipcMain.handle("getHonoPort", () => honoPort);
 
     updateStatus("Loading UI...", loadingWindow!);
@@ -160,8 +172,6 @@ async function initializeApp() {
       const nextJSPort = await startNextJSServer();
       mainWindow!.loadURL(`http://localhost:${nextJSPort}`);
     }
-
-    updateThumbarButtons(mainWindow!, false);
   } catch (error) {
     log.error("Error during app initialization:", error);
     dialog.showErrorBox("Error", "Failed to initialize the application. Please try again.");
